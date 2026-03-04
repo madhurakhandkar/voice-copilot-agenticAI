@@ -1,50 +1,73 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
-from typing import List, Optional
-from fastapi.middleware.cors import CORSMiddleware
 import time
+from typing import List, Optional
+from urllib.parse import urlparse
 
-app = FastAPI()
+from fastapi import APIRouter, BackgroundTasks
+from pydantic import BaseModel
 
-# Enable CORS so the HTML file can communicate with this backend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+from agent import run_agent
 
-# Data Models
+router = APIRouter(tags=["chat"])
+
+
 class Message(BaseModel):
     id: int
     sender: str
     text: str
     url: Optional[str] = None
 
+
 class ChatInput(BaseModel):
     text: str
     url: Optional[str] = None
 
-# In-memory database
+
 messages_db: List[Message] = [
-    Message(id=1, sender="ai", text="Welcome. I am your learning companion. What tool or subject shall we master today? Please attach a URL to begin tracking your progress.")
+    Message(
+        id=1,
+        sender="ai",
+        text="Welcome. I am your learning companion. What tool or subject shall we master today? Please attach a URL to begin tracking your progress.",
+    )
 ]
 
-# Request 1: Display messages on frontend
-@app.get("/messages", response_model=List[Message])
+
+def get_domain(url: str) -> str | None:
+    """Extract hostname from a URL string."""
+    if not url:
+        return None
+    try:
+        if not url.startswith(("http://", "https://")):
+            url = "https://" + url
+        return urlparse(url).hostname
+    except Exception:
+        return None
+
+
+@router.get("/messages", response_model=List[Message])
 async def get_messages():
     return messages_db
 
-# Request 2: Take in frontend API request
-@app.post("/chat")
-async def receive_chat(chat_input: ChatInput):
-    # Save user message
-    user_msg = Message(id=int(time.time() * 1000), sender="user", text=chat_input.text, url=chat_input.url)
+
+@router.post("/chat")
+async def receive_chat(chat_input: ChatInput, background_tasks: BackgroundTasks):
+    user_msg = Message(
+        id=int(time.time() * 1000),
+        sender="user",
+        text=chat_input.text,
+        url=chat_input.url,
+    )
     messages_db.append(user_msg)
-    
-    # Generate AI response
-    ai_msg = Message(id=int(time.time() * 1000) + 1, sender="ai", text=f"I have received your input regarding {chat_input.url if chat_input.url else 'this topic'}. Processing request...")
-    messages_db.append(ai_msg)
-    
+
+    domain = get_domain(chat_input.url) if chat_input.url else None
+
+    if domain:
+        background_tasks.add_task(run_agent, domain, chat_input.text)
+    else:
+        ai_msg = Message(
+            id=int(time.time() * 1000) + 1,
+            sender="ai",
+            text="Please provide a URL so I can track your activity and help you learn. Paste the website URL in the link field below.",
+        )
+        messages_db.append(ai_msg)
+
     return {"status": "success"}

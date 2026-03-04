@@ -249,9 +249,7 @@
 
         const App = () => {
             const [journeys, setJourneys] = useState(initialJourneys);
-            const [messages, setMessages] = useState([
-                { id: 1, sender: 'ai', text: 'Welcome. I am your learning companion. What tool or subject shall we master today? Please attach a URL to begin tracking your progress.' }
-            ]);
+            const [messages, setMessages] = useState([]);
             const [input, setInput] = useState('');
             const [urlInput, setUrlInput] = useState('');
             const messagesEndRef = useRef(null);
@@ -264,46 +262,37 @@
                 scrollToBottom();
             }, [messages]);
 
-            const handleSend = () => {
+            // Poll backend for new messages every 2 seconds
+            useEffect(() => {
+                const interval = setInterval(async () => {
+                    try {
+                        const res = await fetch('/messages');
+                        if (res.ok) {
+                            const data = await res.json();
+                            setMessages(data);
+                        }
+                    } catch (_) {}
+                }, 2000);
+                return () => clearInterval(interval);
+            }, []);
+
+            const handleSend = async () => {
                 if (!input.trim()) return;
 
-                const userMsg = {
-                    id: Date.now(),
-                    sender: 'user',
-                    text: input,
-                    url: urlInput
-                };
-
-                setMessages(prev => [...prev, userMsg]);
-                
-                // 1. Send API Request
-                sendToBackend({ text: input, url: urlInput });
-
-                // 2. Update progress by 1% after 10 seconds
-                setTimeout(() => {
-                    setJourneys(prev => prev.map(j => ({ ...j, progress: Math.min(j.progress + 1, 100) })));
-                }, 10000);
-
-                // Simulate AI Response
-                setTimeout(() => {
-                    setMessages(prev => [...prev, {
-                        id: Date.now() + 1,
-                        sender: 'ai',
-                        text: `I've analyzed your request regarding ${urlInput ? getDomainName(urlInput) : 'this topic'}. Let's break down the core concepts. How would you like to proceed?`
-                    }]);
-                }, 1000);
+                const payload = { text: input, url: urlInput || undefined };
 
                 setInput('');
                 setUrlInput('');
-            };
 
-            // Placeholder for API request
-            const sendToBackend = (payload) => {
-                console.log("Sending to backend:", payload);
-                // fetch('/api/chat', {
-                //     method: 'POST',
-                //     body: JSON.stringify(payload)
-                // });
+                try {
+                    await fetch('/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                } catch (e) {
+                    console.error("Failed to send message:", e);
+                }
             };
 
             return (

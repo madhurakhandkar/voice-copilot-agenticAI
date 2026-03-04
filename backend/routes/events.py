@@ -2,8 +2,10 @@ import json
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from pydantic import BaseModel
+
+from agent import run_agent
 
 router = APIRouter(prefix="/api/events", tags=["events"])
 
@@ -18,25 +20,31 @@ class EventBatch(BaseModel):
 
 
 @router.post("")
-def receive_events(batch: EventBatch):
+def receive_events(batch: EventBatch, background_tasks: BackgroundTasks):
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-    file_path = DATA_DIR / f"{batch.sessionId}.json"
+    file_path = DATA_DIR / f"{batch.domain}.json"
 
     if file_path.exists():
         existing = json.loads(file_path.read_text(encoding="utf-8"))
-        existing["events"].extend([e for e in batch.events])
+        existing["events"].extend(batch.events)
         existing["lastUpdated"] = batch.timestamp
+        if batch.sessionId not in existing.get("sessionIds", []):
+            existing.setdefault("sessionIds", []).append(batch.sessionId)
         file_path.write_text(json.dumps(existing, indent=2), encoding="utf-8")
     else:
         data = {
-            "sessionId": batch.sessionId,
             "domain": batch.domain,
+            "sessionIds": [batch.sessionId],
             "createdAt": batch.timestamp,
             "lastUpdated": batch.timestamp,
             "events": list(batch.events),
         }
         file_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    has_click = any(e.get("type") == "click" for e in batch.events)
+    if has_click:
+        background_tasks.add_task(run_agent, batch.domain)
 
     return {"status": "ok", "events_received": len(batch.events)}
 
@@ -50,7 +58,6 @@ def list_sessions():
         try:
             data = json.loads(f.read_text(encoding="utf-8"))
             sessions.append({
-                "sessionId": data.get("sessionId"),
                 "domain": data.get("domain"),
                 "eventCount": len(data.get("events", [])),
                 "createdAt": data.get("createdAt"),
@@ -62,11 +69,11 @@ def list_sessions():
     return {"sessions": sessions, "total": len(sessions)}
 
 
-@router.get("/{session_id}")
-def get_session(session_id: str):
-    file_path = DATA_DIR / f"{session_id}.json"
+@router.get("/{domain}")
+def get_session(domain: str):
+    file_path = DATA_DIR / f"{domain}.json"
 
     if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Domain data not found")
 
     return json.loads(file_path.read_text(encoding="utf-8"))
