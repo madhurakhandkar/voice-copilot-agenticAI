@@ -8,8 +8,6 @@ Anlearning platform that tracks user engagement in real-time to provide personal
 - [Tech Stack](#tech-stack)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
-- [Running the App](#running-the-app)
-- [Browser Extension](#browser-extension)
 
 ## Features
 
