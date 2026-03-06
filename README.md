@@ -1,6 +1,6 @@
-# Learning Curve Tracker & AI Companion
+# AI Powered Copilot
 
-An intelligent learning platform that tracks user engagement in real-time to provide personalized feedback. This project combines a **Chrome Extension** for behavioral tracking, a **React-based Dashboard** for visualization, and a **Python/FastAPI backend** powered by **AWS Bedrock (Claude 3)** and **AWS Polly** for AI analysis and voice feedback.
+Anlearning platform that tracks user engagement in real-time to provide personalized feedback. This project uses a **Chrome Extension** to track usr behvaior.
 
 ## Table of Contents
 
@@ -14,8 +14,8 @@ An intelligent learning platform that tracks user engagement in real-time to pro
 ## Features
 
 - **Behavioral Tracking:** Captures user clicks, scrolls, and navigation events across the web via a custom Chrome Extension.
-- **AI Analysis:** Uses **Anthropic Claude 3 Haiku** (via AWS Bedrock) to analyze user actions and determine learning status (e.g., "correct", "premature", "struggling").
-- **Voice Feedback:** Synthesizes AI responses into human-like speech using **AWS Polly** and plays them immediately via Pygame.
+- **AI Analysis:** Uses **Anthropic Claude 3 Haiku** (via AWS Bedrock) to analyze user actions and determine learning status.
+- **Voice Feedback:** Synthesizes AI responses into speech using **AWS Polly** and plays them  via Pygame.
 - **Interactive Dashboard:** A React & Material UI frontend that simulates a Learning Management System (LMS) and displays chat/feedback.
 
 ## Tech Stack
@@ -41,25 +41,3 @@ source venv/bin/activate
 # 2. Install dependencies
 pip install fastapi uvicorn boto3 pygame requests
 ```
-
-## Usage
-
-Instructions on how to use the project.
-
-```bash
-python main.py
-```
-
-## Features
-
-- Feature 1
-- Feature 2
-- Feature 3
-
-## Contributing
-
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
-
-## License
-
-[MIT](https://choosealicense.com/licenses/mit/)
